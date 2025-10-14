@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Micro-Play Demo</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='styles.css') }}"
+    />
+    <link
+      rel="shortcut icon"
+      href="{{ url_for('static', filename='favicon.ico') }}"
+    />
+    <script src="{{ url_for('static', filename='jquery-3.6.0.min.js') }}"></script>
+  </head>
+  <body>
+    <div class="header">
+      <h1>Chatting RAG App on Provided Docs</h1>
+    </div>
+    <div id="chat-container">
+      <div id="chat"></div>
+      <div class="input-container">
+        <input
+          type="text"
+          id="query"
+          placeholder="Type your question here..."
+        />
+        <button onclick="sendQuery()">Send</button>
+      </div>
+    </div>
+
+    <script>
+      function sendQuery() {
+        const queryText = $("#query").val();
+        if (!queryText) return;
+        $("#query").val("");
+        $("#chat").append(
+          '<div class="message user"><b>YOU:</b> ' + queryText + "</div>"
+        );
+        $.ajax({
+          url: "/query",
+          method: "POST",
+          contentType: "application/json",
+          data: JSON.stringify({ query_text: queryText }),
+          success: function (response) {
+            $("#chat").append(
+              '<div class="message bot"><b>RAG:</b> ' +
+                response.response +
+                "</div>" +
+                "<br>"
+            );
+            $("#chat").scrollTop($("#chat")[0].scrollHeight);
+          },
+        });
+      }
+    </script>
+  </body>
+</html>
