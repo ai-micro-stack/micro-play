@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Knowledgy Base Admin Page</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='admin.css') }}"
+    />
+    <link
+      rel="shortcut icon"
+      href="{{ url_for('static', filename='favicon.ico') }}"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <h2>Upload a Document File</h2>
+      <form action="/upload" method="post" enctype="multipart/form-data">
+        <div class="file-upload-wrapper">
+          <div class="file-picker">
+            <input
+              type="file"
+              name="file"
+              class="file-upload"
+              id="fileInput"
+              required
+            />
+            <label for="fileInput" class="file-upload-label"
+              >Choose a File</label
+            >
+          </div>
+          <button type="submit">Upload</button>
+        </div>
+        <p class="selected-file" id="fileName">No file selected</p>
+      </form>
+      <hr />
+      <h2>Uploaded Document Files</h2>
+      <ul>
+        {% for file in files %}
+        <li>
+          <a href="{{ url_for('download_file', filename=file) }}">{{ file }}</a>
+          <form
+            class="delete-form"
+            action="{{ url_for('delete_file', filename=file) }}"
+            method="post"
+          >
+            <button class="delete-btn" type="submit">Delete</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+      <hr />
+      <form action="{{ url_for('admin_action') }}" method="post">
+        <div class="page-action-wrapper">
+          <!-- <p>{{ message }}</p> -->
+          <!-- <button type="submit">Index Docs</button> -->
+          <button type="submit" name="button1">Index Knowledgy Base</button>
+          <button type="submit" name="button2">Back to Chatting Page</button>
+        </div>
+      </form>
+    </div>
+
+    <script>
+      document
+        .getElementById("fileInput")
+        .addEventListener("change", function (event) {
+          const fileName = event.target.files.length
+            ? event.target.files[0].name
+            : "No file selected";
+          document.getElementById("fileName").textContent = fileName;
+        });
+    </script>
+  </body>
+</html>

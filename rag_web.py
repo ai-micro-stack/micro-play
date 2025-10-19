@@ -1,5 +1,13 @@
 import os
-from flask import Flask, request, render_template, jsonify
+from flask import (
+    Flask,
+    request,
+    send_from_directory,
+    render_template,
+    redirect,
+    url_for,
+    jsonify,
+)
 from plat.llmodel.llmodel_factory import LLModelFactory
 from plat.vectordb.vectordb_factory import VectorDbFactory
 from plat.embedding.embedding_factory import EmbeddingFactory
@@ -26,6 +34,7 @@ VECTORDB_API_URL = os.getenv("LLM_MODEL_API_URL")
 VECTORDB_API_KEY = os.getenv("LLM_MODEL_API_KEY")
 VECTORDB_ROOT = ".vdb"
 
+RAW_DOC_PATH = os.getenv("RAW_DOC_PATH")
 RETRIEVAL_DOCS = int(os.getenv("RETRIEVAL_DOCS"))
 RELEVANT_DOCS = int(os.getenv("RELEVANT_DOCS"))
 
@@ -34,6 +43,8 @@ DEBUG_MODE = DEBUG.lower() in ("true", "1", "yes", "on") if DEBUG else False
 
 
 app = Flask(__name__)
+os.makedirs(RAW_DOC_PATH, exist_ok=True)
+app.config["RAW_DOC_PATH"] = RAW_DOC_PATH
 
 # Initialize the retriever and LLM
 llmodel_accessor = None
@@ -103,5 +114,50 @@ def query():
     return jsonify(response=response_text)
 
 
+@app.route("/admin")
+def admin():
+    files = os.listdir(RAW_DOC_PATH)
+    return render_template("admin.html", files=files)
+
+
+@app.route("/upload", methods=["POST"])
+def upload_file():
+    if "file" not in request.files:
+        return "No file part", 400
+    file = request.files["file"]
+    if file.filename == "":
+        return "No selected file", 400
+    file.save(os.path.join(app.config["RAW_DOC_PATH"], file.filename))
+    return redirect(url_for("admin"))
+
+
+@app.route("/download/<filename>")
+def download_file(filename):
+    return send_from_directory(app.config["RAW_DOC_PATH"], filename)
+
+
+@app.route("/delete/<filename>", methods=["POST"])
+def delete_file(filename):
+    file_path = os.path.join(app.config["RAW_DOC_PATH"], filename)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    return redirect(url_for("admin"))
+
+@app.route('/admin_action', methods=['GET', 'POST'])
+def admin_action():
+    if request.method == 'POST':
+        if 'button1' in request.form:
+            message = "Button 1 was clicked!"
+            print(message)
+            # Perform actions specific to button 1
+            # return render_template('admin.html', message=message)
+            return redirect(url_for("admin"))
+        elif 'button2' in request.form:
+            message = "Button 2 was clicked!"
+            print(message)
+            # Perform actions specific to button 2
+            # return render_template('admin.html', message=message)
+            return redirect(url_for("index"))
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=8341, debug=True)
