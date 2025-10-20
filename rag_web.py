@@ -11,6 +11,7 @@ from flask import (
 from plat.llmodel.llmodel_factory import LLModelFactory
 from plat.vectordb.vectordb_factory import VectorDbFactory
 from plat.embedding.embedding_factory import EmbeddingFactory
+from rag_index import docIndex
 from rerank.rerank_retrieved_docs import get_context_from_documents
 from dotenv import load_dotenv, set_key
 
@@ -143,21 +144,24 @@ def delete_file(filename):
         os.remove(file_path)
     return redirect(url_for("admin"))
 
-@app.route('/admin_action', methods=['GET', 'POST'])
-def admin_action():
+
+@app.route('/index_docs', methods=['GET', 'POST'])
+def index_docs():
+    # if request.method == 'POST':
+    message = "doc-index was cliked!"
+    print(message)
+    docIndex()
+    return jsonify({'message': 'Data loaded successfully!'})
+
+
+@app.route('/goto_chat', methods=['GET', 'POST'])
+def goto_chat():
     if request.method == 'POST':
-        if 'button1' in request.form:
-            message = "Button 1 was clicked!"
+        if 'button2' in request.form:
+            message = "Back to Homepage was clicked!"
             print(message)
-            # Perform actions specific to button 1
-            # return render_template('admin.html', message=message)
-            return redirect(url_for("admin"))
-        elif 'button2' in request.form:
-            message = "Button 2 was clicked!"
-            print(message)
-            # Perform actions specific to button 2
-            # return render_template('admin.html', message=message)
             return redirect(url_for("index"))
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8341, debug=True)

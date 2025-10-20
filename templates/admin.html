@@ -51,14 +51,17 @@
         {% endfor %}
       </ul>
       <hr />
-      <form action="{{ url_for('admin_action') }}" method="post">
+      <form action="{{ url_for('goto_chat') }}" method="post">
         <div class="page-action-wrapper">
           <!-- <p>{{ message }}</p> -->
-          <!-- <button type="submit">Index Docs</button> -->
-          <button type="submit" name="button1">Index Knowledgy Base</button>
+          <button type="button" id="button1">Index Knowledgy Base</button>
           <button type="submit" name="button2">Back to Chatting Page</button>
         </div>
       </form>
+      <div id="loading-overlay" style="display: none">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+      </div>
     </div>
 
     <script>
@@ -70,6 +73,29 @@
             : "No file selected";
           document.getElementById("fileName").textContent = fileName;
         });
+
+      document.addEventListener("DOMContentLoaded", function () {
+        const docIndex = document.getElementById("button1");
+        if (docIndex) {
+          docIndex.addEventListener("click", function () {
+            // show pop up of page loading
+            document.getElementById("loading-overlay").style.display = "flex";
+            fetch("/index_docs")
+              .then((response) => response.json())
+              .then((data) => {
+                console.log(data);
+                // hide pop up of page loading
+                document.getElementById("loading-overlay").style.display =
+                  "none";
+              })
+              .catch((error) => {
+                console.error("Error:", error);
+                document.getElementById("loading-overlay").style.display =
+                  "none";
+              });
+          });
+        }
+      });
     </script>
   </body>
 </html>
