@@ -1,3 +1,11 @@
+"""
+Flask web application for the RAG (Retrieval-Augmented Generation) system.
+
+This module provides a web interface for document upload, indexing, and Q&A functionality.
+It includes REST API endpoints for querying the RAG system and administrative functions
+for managing documents.
+"""
+
 import os
 from flask import (
     Flask,
@@ -12,156 +20,199 @@ from plat.llmodel.llmodel_factory import LLModelFactory
 from plat.vectordb.vectordb_factory import VectorDbFactory
 from plat.embedding.embedding_factory import EmbeddingFactory
 from rag_index import docIndex
-from rerank.rerank_retrieved_docs import get_context_from_documents
-from dotenv import load_dotenv, set_key
+from rerank.rerank_retrieved_docs import get_context_from_documents_with_query
+from config import config
+from logger import get_logger
 
-load_dotenv()
-ENV_PATH = ".env"
-SUPPORTED_PROVIDERS = os.getenv("SUPPORTED_PROVIDERS")
-
-EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER")
-EMBEDDING_API_URL = os.getenv("EMBEDDING_API_URL")
-EMBEDDING_API_KEY = os.getenv("EMBEDDING_API_KEY")
-
-LLM_MODEL_PROVIDER = os.getenv("LLM_MODEL_PROVIDER")
-LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME")
-LLM_MODEL_API_URL = os.getenv("LLM_MODEL_API_URL")
-LLM_MODEL_API_KEY = os.getenv("LLM_MODEL_API_KEY")
-
-SUPPORTED_VECTORDBS = os.getenv("SUPPORTED_VECTORDBS")
-VECTORDB_PROVIDER = os.getenv("VECTORDB_PROVIDER")
-VECTORDB_TYPE = os.getenv("VECTORDB_TYPE")
-VECTORDB_API_URL = os.getenv("LLM_MODEL_API_URL")
-VECTORDB_API_KEY = os.getenv("LLM_MODEL_API_KEY")
-VECTORDB_ROOT = ".vdb"
-
-RAW_DOC_PATH = os.getenv("RAW_DOC_PATH")
-RETRIEVAL_DOCS = int(os.getenv("RETRIEVAL_DOCS"))
-RELEVANT_DOCS = int(os.getenv("RELEVANT_DOCS"))
-
-DEBUG = os.getenv("DEBUG")
-DEBUG_MODE = DEBUG.lower() in ("true", "1", "yes", "on") if DEBUG else False
+logger = get_logger(__name__)
 
 
 app = Flask(__name__)
-os.makedirs(RAW_DOC_PATH, exist_ok=True)
-app.config["RAW_DOC_PATH"] = RAW_DOC_PATH
+os.makedirs(config.RAW_DOC_PATH, exist_ok=True)
+app.config["RAW_DOC_PATH"] = config.RAW_DOC_PATH
 
 # Initialize the retriever and LLM
 llmodel_accessor = None
 vectordb_accessor = None
 embedding_accessor = None
 
-# def get_vector_db_path(db_type, embedding_provider):
-#     db_path = os.path.join(VECTORDB_ROOT, db_type + "-" + embedding_provider)
-#     os.makedirs(db_path, exist_ok=True)
-#     return db_path
-
 
 def initialize_components():
     """Initialize the retriever and LLM components based on the current settings."""
     global llmodel_accessor, vectordb_accessor, embedding_accessor
 
-    # choose the embedding model
-    embedding_model = EmbeddingFactory(
-        embedding_provider=EMBEDDING_PROVIDER, api_key=EMBEDDING_API_KEY
-    )
-    embedding_accessor = embedding_model.get_embedding_accessor()
+    try:
+        # choose the embedding model
+        embedding_model = EmbeddingFactory(
+            embedding_provider=config.EMBEDDING_PROVIDER, api_key=config.EMBEDDING_API_KEY
+        )
+        embedding_accessor = embedding_model.get_embedding_accessor()
+        logger.info(f"Initialized embedding model: {config.EMBEDDING_PROVIDER}")
 
-    # choose the vectordb model
-    vectordb_model = VectorDbFactory(
-        vectordb_provider=VECTORDB_PROVIDER,
-        db_type=VECTORDB_TYPE,
-        api_key=VECTORDB_API_KEY,
-    )
-    vectordb_accessor = vectordb_model.get_vectordb_accessor()
-    vectordb_accessor.set_embedding_function(embedding_accessor)
+        # choose the vectordb model
+        vectordb_model = VectorDbFactory(
+            vectordb_provider=config.VECTORDB_PROVIDER,
+            db_type=config.VECTORDB_TYPE,
+            api_key=config.VECTORDB_API_KEY,
+        )
+        vectordb_accessor = vectordb_model.get_vectordb_accessor()
+        vectordb_accessor.set_embedding_function(embedding_accessor)
+        logger.info(f"Initialized vector database: {config.VECTORDB_TYPE}")
 
-    # choose the llm model
-    llm_model = LLModelFactory(
-        llmodel_provider=LLM_MODEL_PROVIDER,
-        model_name=LLM_MODEL_NAME,
-        api_key=LLM_MODEL_API_KEY,
-    )
-    llmodel_accessor = llm_model.get_llmodel_accessor()
+        # choose the llm model
+        llm_model = LLModelFactory(
+            llmodel_provider=config.LLM_MODEL_PROVIDER,
+            model_name=config.LLM_MODEL_NAME,
+            api_key=config.LLM_MODEL_API_KEY,
+        )
+        llmodel_accessor = llm_model.get_llmodel_accessor()
+        logger.info(f"Initialized LLM model: {config.LLM_MODEL_PROVIDER}")
 
-    print(
-        f"Instantiating LLM from: {LLM_MODEL_PROVIDER} | LLM model: {LLM_MODEL_NAME} | Embed Provider: {EMBEDDING_PROVIDER} | VDB Provider: {VECTORDB_PROVIDER} | VDB Type: {VECTORDB_TYPE}"
-    )
+        logger.info(
+            f"Components initialized - LLM: {config.LLM_MODEL_PROVIDER} | "
+            f"Embed: {config.EMBEDDING_PROVIDER} | VDB: {config.VECTORDB_TYPE}"
+        )
 
-
-initialize_components()
+    except Exception as e:
+        logger.error(f"Failed to initialize components: {e}")
+        raise
 
 
 @app.route("/")
 def index():
+    initialize_components()
     return render_template("index.html")
 
 
 @app.route("/query", methods=["POST"])
 def query():
-    query_text = request.json["query_text"]
+    try:
+        data = request.get_json()
+        if not data or "query_text" not in data:
+            logger.warning("Invalid request data received")
+            return jsonify(error="Missing query_text in request"), 400
 
-    # Retrieve and rerank the results
-    results = vectordb_accessor.search_similar_chunks(query_text, RETRIEVAL_DOCS)
-    enhanced_context_text, sources = get_context_from_documents(results, 3)
+        query_text = data["query_text"].strip()
+        if not query_text:
+            logger.warning("Empty query received")
+            return jsonify(error="Query text cannot be empty"), 400
 
-    # Generate response from LLM
-    llm_response = llmodel_accessor.generate_response(
-        context=enhanced_context_text, question=query_text
-    )
-    sources_html = "<br>".join(sources)
-    response_text = f"{llm_response}<br><br>Reference Doc Snippet:<br>{sources_html}<br><br>(Response generated by {LLM_MODEL_PROVIDER} served LLM model: {LLM_MODEL_NAME})"
-    return jsonify(response=response_text)
+        if len(query_text) > 1000:  # Reasonable limit
+            logger.warning(f"Query too long: {len(query_text)} characters")
+            return jsonify(error="Query text too long (max 1000 characters)"), 400
+
+        logger.info(f"Processing query: '{query_text[:50]}...'")
+
+        # Retrieve and rerank the results
+        results = vectordb_accessor.search_similar_chunks(query_text, config.RETRIEVAL_DOCS)
+        enhanced_context_text, sources = get_context_from_documents_with_query(query_text, results, config.RELEVANT_DOCS)
+
+        # Generate response from LLM
+        llm_response = llmodel_accessor.generate_response(
+            context=enhanced_context_text, question=query_text
+        )
+
+        sources_html = "<br>".join(sources)
+        response_text = f"{llm_response}<br><br><strong>Reference Doc Snippets:</strong><br>{sources_html}<br><br>(Response generated by {config.LLM_MODEL_PROVIDER} served LLM model: {config.LLM_MODEL_NAME})"
+
+        logger.info(f"Query processed successfully - Found {len(results)} results")
+        return jsonify(response=response_text)
+
+    except Exception as e:
+        logger.error(f"Error processing query: {e}")
+        return jsonify(error="Internal server error"), 500
 
 
 @app.route("/admin")
 def admin():
-    files = os.listdir(RAW_DOC_PATH)
+    files = os.listdir(config.RAW_DOC_PATH)
     return render_template("admin.html", files=files)
 
 
 @app.route("/upload", methods=["POST"])
 def upload_file():
-    if "file" not in request.files:
-        return "No file part", 400
-    file = request.files["file"]
-    if file.filename == "":
-        return "No selected file", 400
-    file.save(os.path.join(app.config["RAW_DOC_PATH"], file.filename))
-    return redirect(url_for("admin"))
+    try:
+        if "file" not in request.files:
+            logger.warning("No file part in upload request")
+            return "No file part", 400
+
+        file = request.files["file"]
+        if file.filename == "":
+            logger.warning("Empty filename in upload request")
+            return "No selected file", 400
+
+        # Validate file extension
+        allowed_extensions = {'.pdf', '.txt', '.md', '.docx'}
+        _, ext = os.path.splitext(file.filename.lower())
+        if ext not in allowed_extensions:
+            logger.warning(f"Invalid file extension: {ext}")
+            return f"File type not allowed. Allowed types: {', '.join(allowed_extensions)}", 400
+
+        # Check file size (10MB limit)
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+        if file_size > 10 * 1024 * 1024:
+            logger.warning(f"File too large: {file_size} bytes")
+            return "File too large (max 10MB)", 400
+
+        file_path = os.path.join(config.RAW_DOC_PATH, file.filename)
+        file.save(file_path)
+        logger.info(f"File uploaded successfully: {file.filename}")
+        return redirect(url_for("admin"))
+
+    except Exception as e:
+        logger.error(f"Error uploading file: {e}")
+        return "Upload failed", 500
 
 
 @app.route("/download/<filename>")
 def download_file(filename):
-    return send_from_directory(app.config["RAW_DOC_PATH"], filename)
+    return send_from_directory(config.RAW_DOC_PATH, filename)
 
 
 @app.route("/delete/<filename>", methods=["POST"])
 def delete_file(filename):
-    file_path = os.path.join(app.config["RAW_DOC_PATH"], filename)
-    if os.path.exists(file_path):
-        os.remove(file_path)
-    return redirect(url_for("admin"))
+    try:
+        # Validate filename to prevent directory traversal
+        if ".." in filename or "/" in filename or "\\" in filename:
+            logger.warning(f"Invalid filename for deletion: {filename}")
+            return "Invalid filename", 400
+
+        file_path = os.path.join(config.RAW_DOC_PATH, filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            logger.info(f"File deleted successfully: {filename}")
+        else:
+            logger.warning(f"File not found for deletion: {filename}")
+        return redirect(url_for("admin"))
+
+    except Exception as e:
+        logger.error(f"Error deleting file {filename}: {e}")
+        return "Delete failed", 500
 
 
-@app.route('/index_docs', methods=['GET', 'POST'])
+@app.route('/index_docs', methods=['POST'])
 def index_docs():
-    # if request.method == 'POST':
-    message = "doc-index was cliked!"
-    print(message)
-    docIndex()
-    return jsonify({'message': 'Data loaded successfully!'})
+    try:
+        logger.info("Starting document indexing process")
+        docIndex()
+        logger.info("Document indexing completed successfully")
+        return jsonify({'message': 'Data loaded successfully!'})
+
+    except Exception as e:
+        logger.error(f"Error during document indexing: {e}")
+        return jsonify({'error': 'Indexing failed'}), 500
 
 
 @app.route('/goto_chat', methods=['GET', 'POST'])
 def goto_chat():
     if request.method == 'POST':
         if 'button2' in request.form:
-            message = "Back to Homepage was clicked!"
-            print(message)
+            initialize_components()
             return redirect(url_for("index"))
 
 
 if __name__ == "__main__":
+    initialize_components()
     app.run(host="0.0.0.0", port=8341, debug=True)

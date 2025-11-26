@@ -12,10 +12,26 @@
       rel="shortcut icon"
       href="{{ url_for('static', filename='favicon.ico') }}"
     />
+    <!-- Matomo -->
+    <script>
+      var _paq = window._paq = window._paq || [];
+      /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+      _paq.push(['trackPageView']);
+      _paq.push(['enableLinkTracking']);
+      (function() {
+        var u="//trend.micro-stack.org/";
+        _paq.push(['setTrackerUrl', u+'matomo.php']);
+        _paq.push(['setSiteId', '5']);
+        var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+        g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+      })();
+    </script>
+    <!-- End Matomo Code -->
   </head>
   <body>
     <div class="container">
-      <h2>Upload a Document File</h2>
+      <h2>Upload Knowledge Base Files</h2>
+      <hr />
       <form action="/upload" method="post" enctype="multipart/form-data">
         <div class="file-upload-wrapper">
           <div class="file-picker">
@@ -80,7 +96,12 @@
           docIndex.addEventListener("click", function () {
             // show pop up of page loading
             document.getElementById("loading-overlay").style.display = "flex";
-            fetch("/index_docs")
+            fetch("/index_docs", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            })
               .then((response) => response.json())
               .then((data) => {
                 console.log(data);

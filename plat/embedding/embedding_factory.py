@@ -1,9 +1,9 @@
-from langchain_community.embeddings.ollama import OllamaEmbeddings
-from langchain_community.embeddings.bedrock import BedrockEmbeddings
 from plat.embedding.embeddings_openai import OpenAIEmbeddings
 from plat.embedding.embeddings_huggingface import SentenceTransformerEmbeddings
 from plat.embedding.embeddings_microplat import PlatServedEmbeddings
-
+from plat.embedding.embeddings_ollama import OllamaEmbeddings
+from plat.embedding.embeddings_bedrock import BedrockEmbeddings
+from config import config
 
 class EmbeddingFactory:
     def __init__(self, embedding_provider: str, api_key: str = None):
@@ -13,11 +13,11 @@ class EmbeddingFactory:
     def get_embedding_accessor(self):
         match self.embedding_provider:
             case "local":
-                return SentenceTransformerEmbeddings(model="all-MiniLM-L6-v2")
+                return SentenceTransformerEmbeddings(model=config.EMBEDDING_MODEL_NAME)
             case "plat":
-                return PlatServedEmbeddings(model="mahonzhan/all-MiniLM-L6-v2")
+                return PlatServedEmbeddings(model=config.EMBEDDING_MODEL_NAME)
             case "ollama":
-                return OllamaEmbeddings(model="mahonzhan/all-MiniLM-L6-v2")
+                return OllamaEmbeddings(model=config.EMBEDDING_MODEL_NAME)
             case "openai":
                 if not self.api_key:
                     raise ValueError(

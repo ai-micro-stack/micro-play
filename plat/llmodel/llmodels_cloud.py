@@ -1,8 +1,9 @@
 from prompt.llm_context_prompt import generate_llm_prompt
 from abc import ABC, abstractmethod
-from langchain_community.llms.ollama import Ollama
+import requests
 from openai import OpenAI
 import anthropic
+from config import config
 
 # from dotenv import load_dotenv
 
@@ -30,10 +31,22 @@ class LLM(ABC):
 class OllamaModel(LLM):
     def __init__(self, model_name: str):
         super().__init__(model_name)
-        self.model = Ollama(model=model_name)
+        self.api_url = config.LLM_MODEL_API_URL.rstrip('/') + "/api/generate"
 
     def invoke(self, prompt: str) -> str:
-        return self.model.invoke(prompt)
+        payload = {
+            "model": self.model_name,
+            "prompt": prompt,
+            "stream": False
+        }
+
+        try:
+            response = requests.post(self.api_url, json=payload, timeout=config.OLLAMA_LLM_TIMEOUT)
+            response.raise_for_status()
+            result = response.json()
+            return result.get("response", "")
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"Ollama API request failed: {e}")
 
 
 class GPTModel(LLM):

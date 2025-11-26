@@ -13,10 +13,25 @@
       href="{{ url_for('static', filename='favicon.ico') }}"
     />
     <script src="{{ url_for('static', filename='jquery-3.6.0.min.js') }}"></script>
+    <!-- Matomo -->
+    <script>
+      var _paq = window._paq = window._paq || [];
+      /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+      _paq.push(['trackPageView']);
+      _paq.push(['enableLinkTracking']);
+      (function() {
+        var u="//trend.micro-stack.org/";
+        _paq.push(['setTrackerUrl', u+'matomo.php']);
+        _paq.push(['setSiteId', '5']);
+        var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+        g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+      })();
+    </script>
+    <!-- End Matomo Code -->
   </head>
   <body>
     <div class="header">
-      <h1>Chat with RAG AI <a href="/admin">(Knowledgy Base &#128218;)</a></h1>
+      <h1>Chat with RAG AI <a href="/admin" class="admin-link">(Manage Knowledgy Base &#128218;)</a></h1>
     </div>
     <div id="chat-container">
       <div id="chat"></div>
@@ -26,34 +41,73 @@
           id="query"
           placeholder="Type your question here..."
         />
-        <button onclick="sendQuery()">Send</button>
+        <button id="sendBtn" onclick="sendQuery()">Send</button>
       </div>
     </div>
 
     <script>
+      let isRequestInProgress = false;
+
       function sendQuery() {
-        const queryText = $("#query").val();
+        // Prevent multiple simultaneous requests
+        if (isRequestInProgress) return;
+
+        const queryText = $("#query").val().trim();
         if (!queryText) return;
+
+        // Set request in progress state
+        isRequestInProgress = true;
+        $("#query").prop("disabled", true);
+        $("#sendBtn").prop("disabled", true).text("Waiting...");
+
+        // Clear input and add user message first
         $("#query").val("");
         $("#chat").append(
           '<div class="message user"><b>YOU:</b> ' + queryText + "</div>"
         );
+
+        // Show RAG with thinking indicator where the answer will appear
+        $("#chat").append('<div id="typing-indicator" class="message bot"><b>RAG:</b> <span class="thinking-text">[Thinking...]</span></div>');
+        $("#chat").scrollTop($("#chat")[0].scrollHeight);
+
         $.ajax({
           url: "/query",
           method: "POST",
           contentType: "application/json",
           data: JSON.stringify({ query_text: queryText }),
           success: function (response) {
-            $("#chat").append(
+            $("#typing-indicator").replaceWith(
               '<div class="message bot"><b>RAG:</b> ' +
                 response.response +
-                "</div>" +
-                "<br>"
+                "</div><br>"
             );
             $("#chat").scrollTop($("#chat")[0].scrollHeight);
           },
+          error: function (xhr, status, error) {
+            $("#typing-indicator").replaceWith(
+              '<div class="message bot error"><b>RAG:</b> Sorry, I encountered an error. Please try again.</div><br>'
+            );
+            console.error("Query error:", error);
+          },
+          complete: function () {
+            // Reset UI state
+            isRequestInProgress = false;
+            $("#query").prop("disabled", false);
+            $("#sendBtn").prop("disabled", false).text("Send");
+            $("#query").focus(); // Return focus to input
+          }
         });
       }
+
+      // Handle Enter key press in the input field
+      $(document).ready(function() {
+        $("#query").keydown(function(event) {
+          if (event.keyCode === 13 && !isRequestInProgress) { // Enter key and not processing
+            event.preventDefault(); // Prevent default form submission
+            sendQuery();
+          }
+        });
+      });
     </script>
   </body>
 </html>

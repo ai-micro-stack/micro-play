@@ -5,6 +5,10 @@ from plat.llmodel.llmodels_cloud import (
     OllamaModel,
     AnthropicModel,
 )
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 
 class LLModelFactory:
@@ -22,8 +26,14 @@ class LLModelFactory:
         elif self.llmodel_provider == "ollama":
             return OllamaModel(model_name=self.llmodel_name)
         elif self.llmodel_provider == "gpt":
-            return GPTModel(model_name=self.llmodel_name, api_key=None)
+            api_key = os.getenv("OPENAI_API_KEY") or self.api_key
+            if not api_key:
+                raise ValueError("OpenAI API key is required for GPT models")
+            return GPTModel(model_name=self.llmodel_name, api_key=api_key)
         elif self.llmodel_provider == "claude":
-            return AnthropicModel(model_name=self.llmodel_name, api_key=None)
+            api_key = os.getenv("ANTHROPIC_API_KEY") or self.api_key
+            if not api_key:
+                raise ValueError("Anthropic API key is required for Claude models")
+            return AnthropicModel(model_name=self.llmodel_name, api_key=api_key)
         else:
             raise ValueError(f"Unsupported model type: {self.llmodel_provider}")

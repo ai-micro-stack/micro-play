@@ -46,11 +46,65 @@ body {
 
 .message.user {
     text-align: right;
+    color: #1a365d;
 }
 
 .message.bot {
     text-align: left;
     color: #007BFF;
+}
+
+.message.error {
+    font-style: italic;
+}
+
+.thinking-text {
+    color: #666;
+    font-style: italic;
+    font-size: 0.9em;
+}
+
+.inline-spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 1.5px solid #007BFF;
+    border-radius: 50%;
+    border-top-color: transparent;
+    border-right-color: transparent;
+    animation: spin 0.8s linear infinite;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+.typing-dots {
+    display: inline-block;
+}
+
+.typing-dots span {
+    display: inline-block;
+    animation: typing 1.5s infinite;
+}
+
+.typing-dots span:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.typing-dots span:nth-child(2) {
+    animation-delay: 0.3s;
+}
+
+.typing-dots span:nth-child(3) {
+    animation-delay: 0.6s;
+}
+
+@keyframes typing {
+    0%, 30%, 100% {
+        transform: translateY(0);
+    }
+    15% {
+        transform: translateY(-5px);
+    }
 }
 
 .input-container {
@@ -79,8 +133,20 @@ button {
     cursor: pointer;
 }
 
-button:hover {
+button:hover:not(:disabled) {
     background-color: #0056b3;
+}
+
+button:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+#query:disabled {
+    background-color: #f8f9fa;
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 h1 {
@@ -106,3 +172,10 @@ a {
 a:hover {
     text-decoration: underline;
 }
+
+.admin-link {
+    font-size: 0.6em;
+    font-weight: normal;
+    margin-left: 10px;
+}
+

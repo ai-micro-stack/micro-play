@@ -1,5 +1,3 @@
-from langchain.prompts import ChatPromptTemplate
-
 PROMPT_TEMPLATE = """
 Basing only on the following context:
 
@@ -12,6 +10,5 @@ Avoid to start the answer saying that you are basing on the provided context and
 """
 
 def generate_llm_prompt(context: str, question: str) -> str:
-    prompt_template = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
-    prompt = prompt_template.format(context=context, question=question)
-    return prompt
+    """Generate a formatted prompt using the template."""
+    return PROMPT_TEMPLATE.format(context=context, question=question)

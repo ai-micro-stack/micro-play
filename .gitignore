@@ -1,3 +1,6 @@
+# Environment variables
+.env
+
 # ---> VisualStudioCode
 .vscode/*
 !.vscode/settings.json
@@ -14,6 +17,7 @@
 
 # Python project assisstant files
 venv/
+.venv/
 __pycache__/
 *.pyc
 
@@ -22,7 +26,18 @@ __pycache__/
 *.bak
 
 # rag model & data
-.vdb
+.vdb/
+!.vdb/docker-compose.yml
 *.tsv
 *.pkl
 *.faiss
+
+# logs
+*.log
+logs/
+
+# raw documents directory
+raw_docs/
+
+# documentation directory
+docs/
